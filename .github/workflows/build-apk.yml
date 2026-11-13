@@ -23,30 +23,43 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: 安装 Android SDK
-        uses: android-actions/setup-android@v3
-
+      # GitHub 托管 runner 已预装 Android SDK 与 cmdline-tools。
+      # 不使用 setup-android@v3：该 action 会尝试安装早已下线的 `tools` 包，
+      # 导致 sdkmanager 退出码 1（Failed to find package 'tools'）。
       - name: 接受 SDK 许可并安装编译组件
+        shell: bash
         run: |
-          yes | sdkmanager --licenses > /dev/null || true
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools" > /dev/null
+          set -e
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKM="$(find "$SDK/cmdline-tools" -type f -name sdkmanager 2>/dev/null | head -1)"
+          if [ -z "$SDKM" ]; then SDKM="$(command -v sdkmanager)"; fi
+          echo "ANDROID_HOME=$SDK"
+          echo "sdkmanager=$SDKM"
+          test -n "$SDKM"
+          yes | "$SDKM" --licenses > /dev/null 2>&1 || true
+          "$SDKM" --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
 
       - name: 启用 Gradle 缓存
         uses: gradle/actions/setup-gradle@v4
 
-      - name: 补齐 Gradle Wrapper JAR
-        # 仓库以纯文本托管，二进制 jar 在 CI 中从 Gradle 官方仓库获取，
-        # 避免把二进制文件提交进 Git，也保证 ./gradlew 可直接使用。
+      - name: 确认 Gradle Wrapper 可用
+        shell: bash
         run: |
-          mkdir -p gradle/wrapper
-          curl -fsSL --retry 3 --max-time 120 \
-            -o gradle/wrapper/gradle-wrapper.jar \
-            https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradle/wrapper/gradle-wrapper.jar
+          set -e
+          # 仓库已包含 wrapper jar；仅在缺失时补下载，避免额外网络依赖。
+          if [ ! -s gradle/wrapper/gradle-wrapper.jar ]; then
+            mkdir -p gradle/wrapper
+            curl -fsSL --retry 3 --max-time 120 \
+              -o gradle/wrapper/gradle-wrapper.jar \
+              https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradle/wrapper/gradle-wrapper.jar
+          fi
           test -s gradle/wrapper/gradle-wrapper.jar
           chmod +x gradlew
 
       - name: 构建 APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
       - name: 上传 Actions 产物
         uses: actions/upload-artifact@v4
