@@ -11,7 +11,9 @@ else
     JAVACMD="java"
 fi
 
-DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
+# 注意：这里不能带引号字面量，否则 java 会把 "-Xmx64m" 当成主类名
+# （Error: Could not find or load main class "-Xmx64m"）。
+DEFAULT_JVM_OPTS="-Xmx64m -Xms64m"
 
 exec "$JAVACMD" \
     $DEFAULT_JVM_OPTS $JAVA_OPTS $GRADLE_OPTS \
