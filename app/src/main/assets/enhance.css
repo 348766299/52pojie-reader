@@ -1,0 +1,242 @@
+/* 吾爱阅读 · 页面样式
+ * 三个层级：
+ *   r52-opt    优化排版（保留原站全部功能，只做移动端重排）
+ *   r52-reader 沉浸阅读（正文重排成卡片，只读）
+ *   r52-tidy   精简（隐藏页脚 / 侧栏 / 推广位，配合 r52-opt）
+ * 站点改版时，通常只需要调整本文件里的选择器。
+ */
+
+html { --r52-scale: 1; }
+html.r52-opt, html.r52-reader { -webkit-text-size-adjust: 100%; }
+
+/* ================= 一、优化排版 ================= */
+html.r52-opt body { min-width: 0 !important; }
+html.r52-opt .wp,
+html.r52-opt #wp {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  padding-left: 8px !important;
+  padding-right: 8px !important;
+}
+html.r52-opt img { max-width: 100% !important; height: auto !important; }
+html.r52-opt iframe,
+html.r52-opt embed,
+html.r52-opt object { max-width: 100% !important; }
+html.r52-opt table { max-width: 100% !important; }
+
+/* 帖子页：Discuz 的左右两栏表格改成单栏块布局 */
+html.r52-opt #postlist { width: 100% !important; }
+html.r52-opt #postlist table.plhin {
+  width: 100% !important;
+  table-layout: fixed !important;
+  border-collapse: collapse;
+}
+html.r52-opt #postlist td.pls { display: none !important; }
+html.r52-opt #postlist td.plc {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box;
+  padding: 6px 2px !important;
+  border: 0 !important;
+  background: transparent !important;
+}
+html.r52-opt #postlist .pct,
+html.r52-opt #postlist .pcb,
+html.r52-opt #postlist .t_fsz { width: 100% !important; }
+html.r52-opt #postlist td.t_f {
+  display: block !important;
+  width: 100% !important;
+  box-sizing: border-box;
+  font-size: calc(16px * var(--r52-scale)) !important;
+  line-height: 1.75 !important;
+  word-wrap: break-word !important;
+  overflow-wrap: anywhere !important;
+}
+html.r52-opt #postlist pre,
+html.r52-opt #postlist .blockcode {
+  max-width: 100% !important;
+  overflow-x: auto !important;
+  white-space: pre-wrap !important;
+  word-break: break-all;
+}
+html.r52-opt #postlist .authi { font-size: 12px; }
+html.r52-opt #postlist .pob { font-size: 12px; }
+
+/* 板块列表页：压缩列宽，隐藏次要列 */
+html.r52-opt #threadlisttableid { table-layout: fixed !important; }
+html.r52-opt #threadlisttableid th,
+html.r52-opt #threadlisttableid td { padding: 9px 3px !important; }
+html.r52-opt #threadlisttableid .by,
+html.r52-opt #threadlisttableid .num { display: none !important; }
+html.r52-opt #threadlisttableid a.s.xst { font-size: 15px; line-height: 1.5; }
+
+/* 首页板块卡片 */
+html.r52-opt .bm { margin-bottom: 8px !important; }
+html.r52-opt .bm_c { padding: 6px !important; }
+html.r52-opt .fl_tb td { width: 50% !important; box-sizing: border-box; }
+
+/* ================= 二、精简页面 ================= */
+html.r52-tidy #ft,
+html.r52-tidy .ft,
+html.r52-tidy #flk,
+html.r52-tidy .pstl,
+html.r52-tidy .psth,
+html.r52-tidy .t_l,
+html.r52-tidy .ad,
+html.r52-tidy .ads,
+html.r52-tidy .adv,
+html.r52-tidy [id^="ad_"],
+html.r52-tidy [class*="ad_banner"],
+html.r52-tidy #an,
+html.r52-tidy .chart { display: none !important; }
+html.r52-tidy #hd { padding-bottom: 2px !important; }
+html.r52-tidy #pt { font-size: 12px; }
+
+/* ================= 三、夜间模式（原站页面用整体反色） ================= */
+html.r52-night:not(.r52-reader) {
+  -webkit-filter: invert(1) hue-rotate(180deg) brightness(.93) contrast(.94) saturate(.88);
+  filter: invert(1) hue-rotate(180deg) brightness(.93) contrast(.94) saturate(.88);
+  background: #111 !important;
+}
+html.r52-night:not(.r52-reader) img,
+html.r52-night:not(.r52-reader) video,
+html.r52-night:not(.r52-reader) canvas,
+html.r52-night:not(.r52-reader) svg,
+html.r52-night:not(.r52-reader) [style*="background-image"] {
+  -webkit-filter: invert(1) hue-rotate(180deg);
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* 隐藏图片（省流量模式，Java 侧同时拦截图片请求） */
+html.r52-nopic img { visibility: hidden !important; }
+
+/* ================= 四、沉浸阅读 ================= */
+html.r52-reader {
+  --r52-bg: #F4F5F7;
+  --r52-card: #FFFFFF;
+  --r52-fg: #1F2328;
+  --r52-sub: #727984;
+  --r52-line: #E6E8EB;
+  --r52-acc: #D23F3A;
+  --r52-code: #F3F4F6;
+}
+html.r52-reader.r52-night {
+  --r52-bg: #101216;
+  --r52-card: #1A1D23;
+  --r52-fg: #DDE1E8;
+  --r52-sub: #858C99;
+  --r52-line: #2A2E37;
+  --r52-acc: #F0736C;
+  --r52-code: #12141A;
+}
+html.r52-reader body {
+  margin: 0 !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  background: var(--r52-bg) !important;
+  color: var(--r52-fg) !important;
+}
+html.r52-reader body > *:not(#r52-reader-root) { display: none !important; }
+
+#r52-reader-root {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 10px 36px;
+  background: var(--r52-bg);
+  color: var(--r52-fg);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+}
+.r52-hd {
+  background: var(--r52-card);
+  border-radius: 12px;
+  padding: 14px 14px 12px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+}
+.r52-hd h1 {
+  margin: 0 0 6px;
+  font-size: calc(19px * var(--r52-scale));
+  line-height: 1.45;
+  font-weight: 700;
+  color: var(--r52-fg);
+  word-break: break-word;
+}
+.r52-sub { font-size: 12px; color: var(--r52-sub); line-height: 1.5; }
+.r52-post {
+  background: var(--r52-card);
+  border-radius: 12px;
+  padding: 12px 14px 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .05);
+}
+.r52-ph {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding-bottom: 9px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--r52-line);
+}
+.r52-name { font-size: 13px; font-weight: 700; color: var(--r52-acc); }
+.r52-badge {
+  background: var(--r52-acc);
+  color: #fff;
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+}
+.r52-floor, .r52-time { font-size: 11px; color: var(--r52-sub); }
+.r52-time { margin-left: auto; }
+.r52-body {
+  font-size: calc(16px * var(--r52-scale));
+  line-height: 1.8;
+  color: var(--r52-fg);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+.r52-body img {
+  display: block;
+  max-width: 100% !important;
+  height: auto !important;
+  margin: 8px auto;
+  border-radius: 6px;
+  background: var(--r52-code);
+}
+html.r52-reader.r52-night .r52-body img { filter: brightness(.84); }
+.r52-body a { color: var(--r52-acc); text-decoration: none; word-break: break-all; }
+.r52-body font[size],
+.r52-body span[style*="font-size"] { font-size: inherit !important; }
+.r52-body font[color] { color: inherit !important; }
+.r52-body pre,
+.r52-body .blockcode,
+.r52-body code {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  background: var(--r52-code);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: .88em;
+  line-height: 1.6;
+}
+.r52-body blockquote {
+  margin: 10px 0;
+  padding: 8px 12px;
+  border-left: 3px solid var(--r52-acc);
+  background: var(--r52-code);
+  color: var(--r52-sub);
+  font-size: .92em;
+}
+.r52-body table { display: block; max-width: 100%; overflow-x: auto; }
+.r52-body ignore_js_op { display: block !important; }
+.r52-body .pstatus,
+.r52-body .attach_tips,
+.r52-body .tip,
+.r52-body .quote { display: none !important; }
+.r52-end { text-align: center; color: var(--r52-sub); font-size: 12px; padding: 16px 0 8px; }
+html.r52-onlyop .r52-post:not(.r52-op) { display: none !important; }
