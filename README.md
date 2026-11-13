@@ -5,9 +5,12 @@
 它不重写论坛，而是用 WebView 承载原站（登录、签到、回复、点赞、附件全部照常可用），
 再注入一段 CSS/JS 把 PC 风格的帖子重排成适合手机的阅读界面。完整调研见 [RESEARCH.md](RESEARCH.md)。
 
-> 代码推到 GitHub 后，`.github/workflows/build-apk.yml` 会自动编译 APK：
-> 既上传 Actions 产物，也发布到仓库的 **Releases**，手机浏览器可直接下载安装。
-> 本机没有 JDK / Android SDK 也没关系，云端构建不需要你装任何开发工具。
+**仓库**：https://github.com/348766299/52pojie-reader
+**直接装 APK**：https://github.com/348766299/52pojie-reader/releases/latest
+
+> 代码推送后 `.github/workflows/build-apk.yml` 自动编译，已实测构建成功：
+> 产物同时上传 Actions 与发布到 **Releases**，手机浏览器可直接下载安装。
+> 本机没有 JDK / Android SDK 也没关系，云端构建不需要装任何开发工具。
 
 ---
 
@@ -129,7 +132,8 @@ curl -fsSL -o gradle/wrapper/gradle-wrapper.jar \
 
 ## 已知限制
 
-- 交付前已完成真实页面注入测试（22/22 通过）、Java 语法解析、XML 与资源引用校验；**Gradle 真编译交给 GitHub Actions 执行**，首次结果以该工作流的运行日志为准。构建环境已全部固定：JDK 17 / Android SDK 34 / Build-Tools 34.0.0 / AGP 8.5.2 / Gradle 8.7。
+- 已完成真实页面注入测试（22/22 通过）、Java 语法解析、XML 与资源引用校验；**Gradle 真编译已在 GitHub Actions 跑通**（run 43455281674，全 9 步成功，产出 47 KB 的 debug APK）。构建环境固定为 JDK 17 / Android SDK 34 / Build-Tools 34.0.0 / AGP 8.5.2 / Gradle 8.7。
+- 云端构建有两个已修过的坑，改动 CI 时别退回去：① 不能用 `android-actions/setup-android@v3`，它会去装已下线的 `tools` 包导致 sdkmanager 退出码 1，直接用 runner 预装的 SDK；② `gradlew` 的 JVM 参数不能带引号字面量，否则 Java 会把 `"-Xmx64m"` 当主类名。
 - 沉浸阅读是**只读视图**，回复 / 点赞 / 下载附件请切回「优化排版」或「原版」（底部「阅读」按钮）。
 - 夜间模式的原站页面用整体反色实现，少数带复杂背景图的板块可能颜色不够准确；沉浸阅读模式使用独立配色，效果更好。
 - 自动签到**只提供任务页快捷入口**，不做任何自动化脚本。
