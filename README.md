@@ -78,7 +78,7 @@ formhash 和 Discuz 页面解析 —— 续作的 README 里作者写着「坏�
 也可以到仓库 **Actions** 页手动点 **Run workflow** 重新打包。
 
 构建成功后有两个下载入口：
-- **Releases（推荐）**：打开仓库右侧 Releases，下载 `wuai-reader-v1.0.0-build.x.apk`，
+- **Releases（推荐）**：打开仓库右侧 Releases，下载 `wuai-reader-v1.0.1-build.x.apk`，
   手机浏览器直接下载安装即可（需允许「安装未知来源应用」）；
 - **Actions 产物**：点进该次运行，下载底部 `wuai-reader-apk`，解压得到 `app-debug.apk`。
 
@@ -91,7 +91,7 @@ curl -fsSL -o gradle/wrapper/gradle-wrapper.jar \
   https://raw.githubusercontent.com/gradle/gradle/v8.7.0/gradle/wrapper/gradle-wrapper.jar
 ```
 
-> 每次 push 都会生成一个带构建号的 Release（`v1.0.0-build.<run_number>`），不会互相覆盖。
+> 每次 push 都会生成一个带构建号的 Release（`v1.0.1-build.<run_number>`），不会互相覆盖。
 
 ### 方式 B：本机用 Android Studio 编译
 
@@ -151,8 +151,8 @@ curl -fsSL -o gradle/wrapper/gradle-wrapper.jar \
 
 ## 已知限制
 
-- 已完成真实页面注入测试（22/22 通过）、Java 语法解析、XML 与资源引用校验；**Gradle 真编译已在 GitHub Actions 跑通**（run 43455281674，全 9 步成功，产出 47 KB 的 debug APK）。构建环境固定为 JDK 17 / Android SDK 34 / Build-Tools 34.0.0 / AGP 8.5.2 / Gradle 8.7。
-- 云端构建有两个已修过的坑，改动 CI 时别退回去：① 不能用 `android-actions/setup-android@v3`，它会去装已下线的 `tools` 包导致 sdkmanager 退出码 1，直接用 runner 预装的 SDK；② `gradlew` 的 JVM 参数不能带引号字面量，否则 Java 会把 `"-Xmx64m"` 当主类名。
+- v1.0.1 回归验证：用真实抓取的首页 / 帖子页 HTML 在 jsdom 中跑完整注入链路，**37/37 断言通过**（126 个 `_blank` 全部规范化、动态插入链接点击兜底、14 层阅读卡片、模式切换、链接提取）；Java 语法 6/6、XML 7/7、workflow YAML 通过。**Gradle 真编译已在 GitHub Actions 跑通**（run 43547298264，全 9 步成功，产出 50 KB 的 debug APK）。构建环境固定为 JDK 17 / Android SDK 34 / Build-Tools 34.0.0 / AGP 8.5.2 / Gradle 8.7。
+- 已踩过的三个坑，改动时别退回去：① 不能用 `android-actions/setup-android@v3`，它会去装已下线的 `tools` 包导致 sdkmanager 退出码 1，直接用 runner 预装的 SDK；② `gradlew` 的 JVM 参数不能带引号字面量，否则 Java 会把 `"-Xmx64m"` 当主类名；③ 不要重新开启 `setSupportMultipleWindows(true)` 或在 `onCreateWindow` 里复用主 WebView，会让首页所有 `_blank` 链接闪退。
 - 沉浸阅读是**只读视图**，回复 / 点赞 / 下载附件请切回「优化排版」或「原版」（底部「阅读」按钮）。
 - 夜间模式的原站页面用整体反色实现，少数带复杂背景图的板块可能颜色不够准确；沉浸阅读模式使用独立配色，效果更好。
 - 自动签到**只提供任务页快捷入口**，不做任何自动化脚本。
