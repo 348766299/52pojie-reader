@@ -16,7 +16,6 @@ import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Message;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
@@ -91,6 +90,7 @@ public class MainActivity extends Activity implements JsBridge.Host {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        CrashLog.install(this);
         setContentView(R.layout.activity_main);
         prefs = new Prefs(this);
 
@@ -189,7 +189,12 @@ public class MainActivity extends Activity implements JsBridge.Host {
         s.setSupportZoom(true);
         s.setBuiltInZoomControls(true);
         s.setDisplayZoomControls(false);
-        s.setSupportMultipleWindows(true);
+        // 站点大量链接带 target="_blank"（首页「人气热门（更多 New~）」、
+        // 帖子列表标题等）。开启多窗口后这类点击会回调 onCreateWindow，
+        // 若把主 WebView 当作新窗口复用，同一个 WebView 会被两个窗口持有，
+        // 在部分机型上直接触发 native 崩溃 / 闪退。单 WebView 应用关掉多窗口，
+        // 让 _blank 统一在当前页面导航，是最稳的做法。
+        s.setSupportMultipleWindows(false);
         s.setCacheMode(WebSettings.LOAD_DEFAULT);
         s.setMixedContentMode(WebSettings.MIXED_CONTENT_COMPATIBILITY_MODE);
         s.setMediaPlaybackRequiresUserGesture(true);
@@ -208,11 +213,16 @@ public class MainActivity extends Activity implements JsBridge.Host {
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                Uri u = request.getUrl();
-                String scheme = u == null ? null : u.getScheme();
-                if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) return false;
-                openExternal(u == null ? "" : u.toString());
-                return true;
+                return handleUrl(request == null ? null : request.getUrl());
+            }
+
+            // 部分 ROM / 老页面仍会走这个已废弃的重载，一并接管，避免漏判 scheme
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                if (TextUtils.isEmpty(url)) return true;
+                Uri u;
+                try { u = Uri.parse(url); } catch (Exception e) { return true; }
+                return handleUrl(u);
             }
 
             @Override
@@ -233,7 +243,9 @@ public class MainActivity extends Activity implements JsBridge.Host {
                 tvTitle.setText(TextUtils.isEmpty(t) ? url : cleanTitle(t));
                 inject();
                 view.postDelayed(new Runnable() {
-                    @Override public void run() { injectIfNeeded(); }
+                    @Override public void run() {
+                        if (web != null && !isFinishing() && !isDestroyed()) injectIfNeeded();
+                    }
                 }, 500);
                 recordHistory(url, view.getTitle());
             }
@@ -263,15 +275,6 @@ public class MainActivity extends Activity implements JsBridge.Host {
             @Override
             public void onReceivedTitle(WebView view, String title) {
                 if (!TextUtils.isEmpty(title)) tvTitle.setText(cleanTitle(title));
-            }
-
-            // Discuz 部分链接带 target=_blank，复用当前 WebView，避免点击没反应
-            @Override
-            public boolean onCreateWindow(WebView view, boolean isDialog, boolean isUserGesture, Message resultMsg) {
-                WebView.WebViewTransport transport = (WebView.WebViewTransport) resultMsg.obj;
-                transport.setWebView(web);
-                resultMsg.sendToTarget();
-                return true;
             }
 
             // 登录 / 发帖时可能需要选择图片或附件
@@ -332,21 +335,42 @@ public class MainActivity extends Activity implements JsBridge.Host {
     }
 
     private void inject() {
-        if (web == null || bootScript == null) return;
-        String script = bootScript + "\nR52BOOT(" + Assets.quote(jsB64) + ","
-                + Assets.quote(cssB64) + "," + optionsJson() + ");";
-        web.evaluateJavascript(script, null);
-        injected = true;
+        if (web == null || bootScript == null || isFinishing() || isDestroyed()) return;
+        try {
+            String script = bootScript + "\nR52BOOT(" + Assets.quote(jsB64) + ","
+                    + Assets.quote(cssB64) + "," + optionsJson() + ");";
+            web.evaluateJavascript(script, null);
+            injected = true;
+        } catch (Throwable t) {
+            CrashLog.note(this, t);
+        }
     }
 
     /** 少数页面有异步渲染，只在脚本确实没落地时补一次，避免重建阅读层丢失滚动位置。 */
     private void injectIfNeeded() {
-        if (web == null || bootScript == null) return;
-        web.evaluateJavascript("(window.R52&&window.R52.__v)?'1':'0'", new ValueCallback<String>() {
-            @Override public void onReceiveValue(String value) {
-                if (!"\"1\"".equals(value)) inject();
-            }
-        });
+        if (web == null || bootScript == null || isFinishing() || isDestroyed()) return;
+        try {
+            web.evaluateJavascript("(window.R52&&window.R52.__v)?'1':'0'", new ValueCallback<String>() {
+                @Override public void onReceiveValue(String value) {
+                    if (!"\"1\"".equals(value)) inject();
+                }
+            });
+        } catch (Throwable t) {
+            CrashLog.note(this, t);
+        }
+    }
+
+    /** 统一处理跳转：http(s) 留在 WebView；伪协议直接忽略；其余交给系统。 */
+    private boolean handleUrl(Uri u) {
+        if (u == null) return true;
+        String scheme = u.getScheme();
+        if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) return false;
+        String raw = u.toString().toLowerCase(Locale.ROOT);
+        if (raw.startsWith("javascript:") || raw.startsWith("about:")
+                || raw.startsWith("data:") || raw.startsWith("blob:")
+                || raw.startsWith("file:")) return true;
+        openExternal(u.toString());
+        return true;
     }
 
     /* ---------------- 外观 ---------------- */
@@ -467,7 +491,7 @@ public class MainActivity extends Activity implements JsBridge.Host {
     private void showAbout() {
         new AlertDialog.Builder(this)
                 .setTitle("关于 吾爱阅读")
-                .setMessage("版本 1.0.0\n\n"
+                .setMessage("版本 1.0.1（修复首页热门 / 帖子链接闪退）\n\n"
                         + "基于 WebView 的论坛阅读增强客户端：保留原站全部功能，"
                         + "通过注入脚本优化手机排版、提供沉浸阅读、夜间模式、字号调节、"
                         + "收藏与下载链接提取。\n\n"
@@ -577,6 +601,14 @@ public class MainActivity extends Activity implements JsBridge.Host {
         });
         box.addView(btnClearCache);
 
+        Button btnCrash = new Button(this);
+        btnCrash.setText("查看崩溃日志（排障用）");
+        btnCrash.setAllCaps(false);
+        btnCrash.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showCrashLog(); }
+        });
+        box.addView(btnCrash);
+
         new AlertDialog.Builder(this)
                 .setTitle("设置")
                 .setView(scroll)
@@ -595,6 +627,40 @@ public class MainActivity extends Activity implements JsBridge.Host {
                     }
                 })
                 .setNegativeButton("取消", null)
+                .show();
+    }
+
+    /** 没有 logcat 的环境里，让用户能直接把崩溃堆栈复制出来。 */
+    private void showCrashLog() {
+        if (!CrashLog.exists(this)) {
+            toast("暂无崩溃记录");
+            return;
+        }
+        final String log = CrashLog.read(this);
+        ScrollView sv = new ScrollView(this);
+        TextView tv = new TextView(this);
+        tv.setText(log);
+        tv.setTextSize(11);
+        tv.setTextIsSelectable(true);
+        int p = dp(16);
+        tv.setPadding(p, p, p, p);
+        sv.addView(tv);
+        new AlertDialog.Builder(this)
+                .setTitle("崩溃日志（可长按选中，或直接复制全部）")
+                .setView(sv)
+                .setPositiveButton("复制全部", new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int w) {
+                        copy(log);
+                        toast("已复制崩溃日志");
+                    }
+                })
+                .setNeutralButton("清空", new DialogInterface.OnClickListener() {
+                    @Override public void onClick(DialogInterface d, int w) {
+                        CrashLog.clear(MainActivity.this);
+                        toast("已清空");
+                    }
+                })
+                .setNegativeButton("关闭", null)
                 .show();
     }
 
@@ -691,6 +757,7 @@ public class MainActivity extends Activity implements JsBridge.Host {
                 if (night && dlg.getWindow() != null) {
                     dlg.getWindow().setBackgroundDrawable(new ColorDrawable(bg));
                 }
+                if (dlg.getListView() == null) return;
                 dlg.getListView().setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
                     @Override
                     public boolean onItemLongClick(AdapterView<?> parent, View v, final int pos, long id) {
@@ -769,7 +836,13 @@ public class MainActivity extends Activity implements JsBridge.Host {
                 for (int i = 0; i < a.length(); i++) urls.add(a.optString(i));
             }
             int idx = Math.max(0, Math.min(o.optInt("index", 0), Math.max(0, urls.size() - 1)));
-            showImageDialog(urls, idx);
+            try {
+                showImageDialog(urls, idx);
+            } catch (Throwable t) {
+                // 个别机型创建第二个 WebView 会失败，降级为用外部浏览器打开
+                CrashLog.note(this, t);
+                if (!urls.isEmpty()) openExternal(urls.get(idx));
+            }
         } catch (Exception ignored) { }
     }
 
@@ -937,7 +1010,10 @@ public class MainActivity extends Activity implements JsBridge.Host {
 
     private void openExternal(String url) {
         if (TextUtils.isEmpty(url)) return;
-        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url))); }
+        Uri u;
+        try { u = Uri.parse(url); } catch (Exception e) { return; }
+        if (u == null || u.getScheme() == null) return;
+        try { startActivity(new Intent(Intent.ACTION_VIEW, u)); }
         catch (Exception e) { toast("没有应用可以打开该链接"); }
     }
 

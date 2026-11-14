@@ -14,6 +14,25 @@
 
 ---
 
+## 更新记录
+
+**v1.0.1** — 修复点击首页「人气热门（更多 New~）」以及下方帖子列表链接时闪退。
+
+站点这些链接几乎全部带 `target="_blank"`（实测首页该处为
+`forum.php?mod=guide&view=hot" target="_blank"`）。v1.0.0 开启了 WebView 多窗口支持，
+又在 `onCreateWindow` 里把**主 WebView 复用为新窗口**，导致同一个 WebView 被两个窗口持有，
+在部分机型上直接触发 native 崩溃。修复方式：
+
+- 关闭 `setSupportMultipleWindows`，移除危险的 `onCreateWindow` 实现；
+- 注入层把所有 `_blank` / `_new` 规范为当前窗口导航，并在点击捕获阶段再兜底一次
+  （覆盖 Discuz 通过 AJAX 后插入的链接），「原版」模式也同样生效；
+- 补齐伪协议跳转、生命周期与空值防护，避免点击时走到异常分支。
+
+另外加入**崩溃日志**：设置 → 「查看崩溃日志（排障用）」可复制或清空堆栈，
+日志只写本机私有目录、不上传。以后再遇到闪退，把日志贴出来即可直接定位。
+
+---
+
 ## 为什么不是照抄 GitHub 上的 LCG
 
 GitHub 上最成熟的是 `fabricezhang/lcg`（807★）和它的续作 `sjshb57/NewLcgR`（v2.3.0，仍在更新），

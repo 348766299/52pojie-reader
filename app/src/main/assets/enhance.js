@@ -92,11 +92,31 @@
     });
   }
 
+  /* 站点首页的「更多 New~」、帖子列表标题等链接几乎都带 target="_blank"。
+   * 单 WebView 客户端里这类链接必须统一在当前页面打开：既避免多窗口，
+   * 也避免点开后没有任何反应。DOM 里清一遍，点击瞬间再兜底一次
+   * （覆盖 Discuz AJAX 之后才插入的节点）。 */
+  function normalizeTargets(root) {
+    qa('a[target]', root).forEach(function (a) {
+      var t = (a.getAttribute('target') || '').toLowerCase();
+      if (t === '_blank' || t === '_new') a.setAttribute('target', '_self');
+    });
+  }
+
+  function normalizeClickedLink(target) {
+    if (!target || !target.closest) return;
+    var a = target.closest('a[target]');
+    if (!a) return;
+    var t = (a.getAttribute('target') || '').toLowerCase();
+    if (t === '_blank' || t === '_new') a.setAttribute('target', '_self');
+  }
+
   var clickBound = false;
   function bindClickOnce() {
     if (clickBound) return;
     clickBound = true;
     document.addEventListener('click', function (e) {
+      normalizeClickedLink(e.target);
       var img = e.target;
       if (!img || img.tagName !== 'IMG') return;
       // 带链接的图片（附件、图文跳转）保持原行为
@@ -200,6 +220,9 @@
     if (S.night) root.classList.add('r52-night');
     if (S.nopic) root.classList.add('r52-nopic');
     if (S.onlyOp) root.classList.add('r52-onlyop');
+
+    // 无条件执行：即使切到「原版」模式，也不能让 _blank 链接触发多窗口
+    normalizeTargets(document);
   };
 
   R.install = function (cssB64, opts) {
